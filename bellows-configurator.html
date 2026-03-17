@@ -1,0 +1,1917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SERVOMETER Bellows Design Tool</title>
+<style>
+  /* ============================================================
+     DESIGN TOKENS
+  ============================================================ */
+  :root {
+    --bg:          #0d0f12;
+    --surface:     #13161b;
+    --surface2:    #1a1e26;
+    --border:      #2a2f3a;
+    --border2:     #3a4050;
+    --text:        #e2e6ee;
+    --text-dim:    #9baabb;
+    --text-faint:  #6b7894;
+    --accent:      #f5c842;
+    --accent-dim:  #c9a030;
+    --ok:          #3dd68c;
+    --warn:        #f5a623;
+    --err:         #f55252;
+    --blue:        #4a9eff;
+    --mono:        'Courier New', 'Lucida Console', monospace;
+    --sans:        'Trebuchet MS', 'Gill Sans', sans-serif;
+  }
+
+  /* ============================================================
+     RESET & BASE
+  ============================================================ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ============================================================
+     HEADER
+  ============================================================ */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+
+  .header-title {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: bold;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .header-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* Share section (left panel) */
+  .share-explainer {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-faint);
+    line-height: 1.7;
+    margin-bottom: 12px;
+  }
+
+  .share-btn-panel {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 8px 16px;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    width: 100%;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .share-btn-panel:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .share-btn-panel.copied {
+    background: var(--ok);
+    border-color: var(--ok);
+    color: #000;
+    font-weight: bold;
+  }
+
+  /* Share button (header — kept for potential reuse) */
+  .share-btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 14px;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    letter-spacing: 0.05em;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+
+  .share-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .share-btn.copied {
+    background: var(--ok);
+    border-color: var(--ok);
+    color: #000;
+    font-weight: bold;
+  }
+
+  /* Unit toggle */
+  .unit-toggle {
+    display: flex;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    overflow: hidden;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .unit-toggle button {
+    padding: 6px 14px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    letter-spacing: 0.05em;
+  }
+
+  .unit-toggle button.active {
+    background: var(--accent);
+    color: #000;
+    font-weight: bold;
+  }
+
+  /* Mode toggle */
+  .mode-toggle {
+    display: flex;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    overflow: hidden;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .mode-toggle button {
+    padding: 6px 14px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    letter-spacing: 0.05em;
+  }
+
+  .mode-toggle button.active {
+    background: var(--blue);
+    color: #fff;
+    font-weight: bold;
+  }
+
+  .toggle-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    align-self: center;
+  }
+
+  /* ============================================================
+     MAIN LAYOUT
+  ============================================================ */
+  .main {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    grid-template-rows: 1fr;
+    flex: 1;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* ============================================================
+     LEFT PANEL — INPUTS
+  ============================================================ */
+  .panel-inputs {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .panel-section {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-section-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 14px;
+  }
+
+  /* Sliders */
+  .slider-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 16px;
+  }
+
+  .slider-row:last-child { margin-bottom: 0; }
+
+  .slider-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .slider-name {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+  }
+
+  .slider-name span {
+    font-style: italic;
+    color: var(--text-faint);
+  }
+
+  .slider-value {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text);
+    font-weight: bold;
+    letter-spacing: 0.02em;
+    width: 88px;
+    text-align: right;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border2);
+    outline: none;
+    padding: 0 0 1px 0;
+    cursor: text;
+    transition: border-color 0.15s;
+  }
+
+  .slider-value:focus {
+    border-bottom-color: var(--accent);
+    color: var(--text);
+  }
+
+  .slider-value.input-error {
+    border-bottom-color: var(--err);
+    color: var(--err);
+  }
+
+  .slider-range-row {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-faint);
+    margin-top: 2px;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 3px;
+    background: var(--border2);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover {
+    background: #fff;
+  }
+
+  input[type="range"].warn-slider::-webkit-slider-thumb {
+    background: var(--warn);
+  }
+
+  input[type="range"].err-slider::-webkit-slider-thumb {
+    background: var(--err);
+  }
+
+  /* Life cycle selector */
+  .life-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .life-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 5px 10px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-radius: 3px;
+    letter-spacing: 0.04em;
+    transition: all 0.12s;
+  }
+
+  .life-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #000;
+    font-weight: bold;
+  }
+
+  /* Constraint warnings */
+  .warnings-area {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 20px;
+  }
+
+  .warning-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.03em;
+    line-height: 1.4;
+  }
+
+  .warning-pill.ok    { background: rgba(61,214,140,0.10); border: 1px solid rgba(61,214,140,0.25); color: var(--ok); }
+  .warning-pill.warn  { background: rgba(245,166,35,0.10);  border: 1px solid rgba(245,166,35,0.25);  color: var(--warn); }
+  .warning-pill.err   { background: rgba(245,82,82,0.10);   border: 1px solid rgba(245,82,82,0.25);   color: var(--err); }
+
+  .pill-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .warning-pill.ok   .pill-dot { background: var(--ok); }
+  .warning-pill.warn .pill-dot { background: var(--warn); }
+  .warning-pill.err  .pill-dot { background: var(--err); }
+
+  .no-warnings {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-faint);
+  }
+
+  /* ============================================================
+     RIGHT PANEL — OUTPUTS + DIAGRAM
+  ============================================================ */
+  .panel-right {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  /* Diagram */
+  .diagram-area {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px 12px;
+    flex: 0 0 auto;
+    position: relative;
+  }
+
+  .diagram-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 10px;
+  }
+
+  #bellows-svg {
+    width: 100%;
+    display: block;
+  }
+
+  /* Outputs */
+  .outputs-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 24px;
+  }
+
+  .outputs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+
+  .output-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 14px;
+    position: relative;
+  }
+
+  .output-card.wide {
+    grid-column: 1 / -1;
+  }
+
+  .output-card-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 6px;
+  }
+
+  .output-card-symbol {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-faint);
+    float: right;
+    font-style: italic;
+  }
+
+  .output-value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: bold;
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+
+  .output-unit {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-left: 4px;
+  }
+
+  .output-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    line-height: 1.6;
+  }
+
+  .output-sub span {
+    color: var(--text-faint);
+    margin-right: 4px;
+  }
+
+  .output-sub .val {
+    color: var(--text);
+  }
+
+  /* Pressure card rows */
+  .pressure-row {
+    display: flex;
+    gap: 20px;
+    margin-top: 4px;
+  }
+
+  .pressure-item {
+    flex: 1;
+  }
+
+  .pressure-item-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 3px;
+  }
+
+  .pressure-item-val {
+    font-family: var(--mono);
+    font-size: 17px;
+    font-weight: bold;
+    color: var(--text);
+  }
+
+  .pressure-item-val .unit { font-size: 11px; color: var(--text-dim); }
+
+  .pressure-item-psi {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: bold;
+    color: var(--text-dim);
+    margin-top: 4px;
+    letter-spacing: 0.02em;
+  }
+
+  /* Status bar accent on card */
+  .output-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 4px 0 0 4px;
+    background: var(--border2);
+  }
+
+  .output-card.accent-yellow::before { background: var(--accent); }
+  .output-card.accent-blue::before   { background: var(--blue); }
+  .output-card.accent-green::before  { background: var(--ok); }
+  .output-card.accent-warn::before   { background: var(--warn); }
+  .output-card.accent-err::before    { background: var(--err); }
+
+  /* Derived inputs note */
+  .derived-note {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-faint);
+    padding: 8px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    margin-top: 10px;
+    line-height: 1.6;
+  }
+
+  .derived-note strong {
+    color: var(--text-dim);
+    font-weight: normal;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* Assumption note */
+  .assumption-note {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-faint);
+    padding: 8px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    letter-spacing: 0.03em;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     HEADER
+============================================================ -->
+<header>
+  <div class="header-left">
+    <div class="header-title">SERVOMETER Bellows Design Tool</div>
+    <div class="header-sub">Electrodeposited Metal Bellows · Straight Applications Only</div>
+  </div>
+  <div class="header-right">
+    <span class="toggle-label">Units</span>
+    <div class="unit-toggle">
+      <button id="btn-mm" class="active" onclick="setUnit('mm')">mm</button>
+      <button id="btn-in" onclick="setUnit('in')">in</button>
+    </div>
+    <span class="toggle-label">Mode</span>
+    <div class="mode-toggle">
+      <button id="btn-comp" class="active" onclick="setMode('compression')">Compression</button>
+      <button id="btn-ext" onclick="setMode('extension')">Extension</button>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================
+     MAIN
+============================================================ -->
+<div class="main">
+
+  <!-- ---- LEFT: INPUTS ---- -->
+  <div class="panel-inputs">
+
+    <!-- Geometry -->
+    <div class="panel-section">
+      <div class="panel-section-title">Geometry</div>
+
+      <div class="slider-row" id="row-OD">
+        <div class="slider-label-row">
+          <div class="slider-name">Outside Diameter <span>(O)</span></div>
+          <input type="text" class="slider-value" id="val-OD" autocomplete="off" spellcheck="false">
+        </div>
+        <input type="range" id="sl-OD">
+        <div class="slider-range-row"><span id="min-OD">—</span><span id="max-OD">—</span></div>
+      </div>
+
+      <div class="slider-row" id="row-ratio">
+        <div class="slider-label-row">
+          <div class="slider-name">ID/OD Ratio</div>
+          <input type="text" class="slider-value" id="val-ratio" autocomplete="off" spellcheck="false">
+        </div>
+        <input type="range" id="sl-ratio">
+        <div class="slider-range-row"><span>0.60</span><span>0.95</span></div>
+      </div>
+
+      <div class="slider-row" id="row-t">
+        <div class="slider-label-row">
+          <div class="slider-name">Wall Thickness <span>(t)</span></div>
+          <input type="text" class="slider-value" id="val-t" autocomplete="off" spellcheck="false">
+        </div>
+        <input type="range" id="sl-t">
+        <div class="slider-range-row"><span id="min-t">—</span><span id="max-t">—</span></div>
+      </div>
+
+      <div class="derived-note" id="derived-note">
+        <strong>Derived →</strong> ID: <span id="dn-ID">—</span> &nbsp;|&nbsp; ID/OD: <span id="dn-ratio">—</span>
+      </div>
+    </div>
+
+    <!-- Convolutions -->
+    <div class="panel-section">
+      <div class="panel-section-title">Convolutions</div>
+
+      <div class="slider-row" id="row-N">
+        <div class="slider-label-row">
+          <div class="slider-name">Number of Convolutions <span>(N)</span></div>
+          <input type="text" class="slider-value" id="val-N" autocomplete="off" spellcheck="false">
+        </div>
+        <input type="range" id="sl-N" min="1" max="500" step="0.5">
+        <div class="slider-range-row"><span>1</span><span>500</span></div>
+      </div>
+
+      <div class="slider-row" id="row-n">
+        <div class="slider-label-row">
+          <div class="slider-name">Conv. Pitch <span>(n)</span></div>
+          <input type="text" class="slider-value" id="val-n" autocomplete="off" spellcheck="false">
+        </div>
+        <input type="range" id="sl-n">
+        <div class="slider-range-row"><span id="min-n">—</span><span id="max-n">—</span></div>
+      </div>
+
+      <div class="derived-note">
+        <strong>Derived →</strong> Active length (L = N × n): <span id="dn-L">—</span>
+      </div>
+    </div>
+
+    <!-- Pressure & Life -->
+    <div class="panel-section">
+      <div class="panel-section-title">Operating Conditions</div>
+
+      <div class="slider-row" id="row-Pwork">
+        <div class="slider-label-row">
+          <div class="slider-name">Working Pressure <span>(% of rated)</span></div>
+          <input type="text" class="slider-value" id="val-Pwork" autocomplete="off" spellcheck="false">
+        </div>
+        <input type="range" id="sl-Pwork" min="0" max="120" step="1">
+        <div class="slider-range-row"><span>0%</span><span>120%</span></div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-label-row" style="margin-bottom:8px;">
+          <div class="slider-name">Target Cycle Life</div>
+        </div>
+        <div class="life-selector" id="life-selector"></div>
+      </div>
+    </div>
+
+    <!-- Constraint Warnings -->
+    <div class="panel-section">
+      <div class="panel-section-title">Constraint Check</div>
+      <div class="warnings-area" id="warnings-area">
+        <div class="no-warnings">Calculating…</div>
+      </div>
+    </div>
+
+    <!-- Share Link -->
+    <div class="panel-section share-section">
+      <div class="panel-section-title">Share</div>
+      <p class="share-explainer">
+        Copies a link to this page with all current parameters encoded in the URL.
+        Anyone opening the link will see the tool loaded with exactly your settings —
+        useful for saving a design or sharing it for review.
+      </p>
+      <button id="btn-share" class="share-btn-panel" onclick="copyShareLink()">Copy Link to Clipboard</button>
+    </div>
+
+  </div><!-- end panel-inputs -->
+
+  <!-- ---- RIGHT: DIAGRAM + OUTPUTS ---- -->
+  <div class="panel-right">
+
+    <!-- Diagram -->
+    <div class="diagram-area">
+      <div class="diagram-title">Cross-Section — Longitudinal (Centerline View)</div>
+      <svg id="bellows-svg" viewBox="0 0 800 200" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+
+    <!-- Outputs -->
+    <div class="outputs-area">
+      <div class="outputs-grid">
+
+        <!-- Pressure -->
+        <div class="output-card wide accent-yellow">
+          <div class="output-card-label">Pressure Rating <span class="output-card-symbol">P</span></div>
+          <div class="pressure-row">
+            <div class="pressure-item">
+              <div class="pressure-item-label">Nominal</div>
+              <div class="pressure-item-val" id="out-P-nom">—<span class="unit"></span></div>
+              <div class="pressure-item-psi" id="out-P-nom-psi"></div>
+            </div>
+            <div class="pressure-item">
+              <div class="pressure-item-label">Proof (×1.75)</div>
+              <div class="pressure-item-val" id="out-P-proof">—<span class="unit"></span></div>
+              <div class="pressure-item-psi" id="out-P-proof-psi"></div>
+            </div>
+            <div class="pressure-item">
+              <div class="pressure-item-label">Burst (×2.50)</div>
+              <div class="pressure-item-val" id="out-P-burst">—<span class="unit"></span></div>
+              <div class="pressure-item-psi" id="out-P-burst-psi"></div>
+            </div>
+            <div class="pressure-item">
+              <div class="pressure-item-label">Working Pressure</div>
+              <div class="pressure-item-val" id="out-P-working">—<span class="unit"></span></div>
+              <div class="pressure-item-psi" id="out-P-working-psi"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rated Stroke -->
+        <div class="output-card accent-blue" id="card-stroke">
+          <div class="output-card-label">Rated Stroke <span class="output-card-symbol">S</span></div>
+          <div class="output-value"><span id="out-S">—</span><span class="output-unit" id="out-S-unit"></span></div>
+          <div class="output-sub" id="sub-S"></div>
+        </div>
+
+        <!-- Usable Stroke -->
+        <div class="output-card accent-green" id="card-usable">
+          <div class="output-card-label">Usable Stroke <span class="output-card-symbol">S<sub>use</sub></span></div>
+          <div class="output-value"><span id="out-Su">—</span><span class="output-unit" id="out-Su-unit"></span></div>
+          <div class="output-sub" id="sub-Su"></div>
+        </div>
+
+        <!-- Spring Rate -->
+        <div class="output-card accent-blue">
+          <div class="output-card-label">Spring Rate <span class="output-card-symbol">R</span></div>
+          <div class="output-value"><span id="out-R">—</span><span class="output-unit" id="out-R-unit"></span></div>
+          <div class="output-sub">Parallel side-wall convolutions</div>
+        </div>
+
+        <!-- Effective Area -->
+        <div class="output-card accent-yellow">
+          <div class="output-card-label">Effective Area <span class="output-card-symbol">A<sub>e</sub></span></div>
+          <div class="output-value"><span id="out-Ae">—</span><span class="output-unit" id="out-Ae-unit"></span></div>
+        </div>
+
+        <!-- Critical Buckling -->
+        <div class="output-card" id="card-Pc">
+          <div class="output-card-label">Critical Buckling Pressure <span class="output-card-symbol">P<sub>c</sub></span></div>
+          <div class="output-value"><span id="out-Pc">—</span><span class="output-unit" id="out-Pc-unit"></span></div>
+          <div class="output-sub" id="sub-Pc"></div>
+        </div>
+
+        <!-- Derived geometry summary -->
+        <div class="output-card">
+          <div class="output-card-label">Geometry Summary</div>
+          <div class="output-sub" id="out-geo" style="margin-top:0; font-size:11px; line-height:2;"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="assumption-note">
+      ⚠ Assumes parallel side-wall convolutions · FlexNickel™ E = 23,350,000 psi · All formulas per Servometer Bellows Design Guide
+    </div>
+
+  </div><!-- end panel-right -->
+
+</div><!-- end main -->
+
+<script>
+/* ============================================================
+   CONSTANTS
+============================================================ */
+const Constants = {
+  E: 23_350_000,        // psi, Young's modulus for FlexNickel™
+  IN_TO_MM: 25.4,
+  MM_TO_IN: 1 / 25.4,
+
+  // Design limits table [OD_in, minWall_in, minGrooveW_in, minGrooveD_in, minFinW_in]
+  designLimits: [
+    [0.063,  0.0003, 0.003, 0.011, 0.002],
+    [0.125,  0.0005, 0.004, 0.024, 0.003],
+    [0.250,  0.0007, 0.014, 0.049, 0.007],
+    [0.375,  0.0009, 0.024, 0.074, 0.010],
+    [0.500,  0.0010, 0.028, 0.085, 0.012],
+    [0.750,  0.0014, 0.047, 0.122, 0.017],
+    [1.000,  0.0020, 0.075, 0.180, 0.025],
+    [1.250,  0.0022, 0.090, 0.200, 0.030],
+    [1.500,  0.0025, 0.100, 0.250, 0.035],
+    [2.000,  0.0030, 0.100, 0.250, 0.040],
+    [2.500,  0.0035, 0.125, 0.250, 0.043],
+    [3.000,  0.0040, 0.125, 0.250, 0.045],
+  ],
+
+  // Life expectancy table [cycles, compressionFactor]
+  lifeCycles: [1000, 10000, 100000, 1e6, 10e6, 100e6, 1e9],
+  lifeLabels: ['1K', '10K', '100K', '1M', '10M', '100M', '1B'],
+  lifeFactors: [1.50, 1.25, 1.00, 0.84, 0.78, 0.75, 0.72],
+
+  // De-rating curve: [workingPressureFraction, usableStrokeFraction]
+  // Digitized from the chart in the Servometer Bellows Design Guide
+  deratingCurve: [
+    [0.00, 1.00],
+    [0.40, 1.00],
+    [0.50, 0.95],
+    [0.60, 0.87],
+    [0.70, 0.77],
+    [0.80, 0.67],
+    [0.90, 0.50],
+    [1.00, 0.30],
+    [1.10, 0.15],
+    [1.20, 0.05],
+  ],
+};
+
+/* ============================================================
+   STATE
+============================================================ */
+const State = {
+  unit: 'mm',      // 'mm' | 'in'
+  mode: 'compression',  // 'compression' | 'extension'
+
+  // Internal values always stored in INCHES
+  OD:     0.500,   // outside diameter
+  ratio:  0.65,    // ID/OD ratio
+  t:      0.0010,  // wall thickness
+  N:      12,      // number of convolutions (0.5 steps)
+  n_pitch: 0.0408, // convolution pitch in inches (L = N × n_pitch, default ≈ 0.490/12)
+  Pwork_pct: 40,   // working pressure as % of rated
+  lifeCycleIndex: 2, // index into lifeCycles array (default 100K)
+};
+
+/* ============================================================
+   UNITS UTILITY
+============================================================ */
+const Units = {
+  // Convert from inches (internal) to display unit
+  toDisplay(val_in) {
+    return State.unit === 'mm' ? val_in * Constants.IN_TO_MM : val_in;
+  },
+  // Convert from display unit to inches (internal)
+  toInternal(val_display) {
+    return State.unit === 'mm' ? val_display * Constants.MM_TO_IN : val_display;
+  },
+  // Format a display value
+  fmt(val_in, decimals) {
+    const v = this.toDisplay(val_in);
+    if (decimals !== undefined) return v.toFixed(decimals);
+    // Auto decimals based on magnitude
+    if (Math.abs(v) >= 100) return v.toFixed(1);
+    if (Math.abs(v) >= 10)  return v.toFixed(2);
+    if (Math.abs(v) >= 1)   return v.toFixed(3);
+    return v.toFixed(4);
+  },
+  suffix() { return State.unit === 'mm' ? 'mm' : 'in'; },
+  // Slider step size in INCHES — setSlider converts to display unit via toDisplay()
+  dimStep() { return 0.0001; },
+};
+
+/* ============================================================
+   DESIGN LIMITS LOOKUP
+============================================================ */
+const DesignLimits = {
+  // Returns min wall thickness in inches for given OD (inches)
+  getMinWall(OD_in) {
+    const tbl = Constants.designLimits;
+    if (OD_in <= tbl[0][0]) return tbl[0][1];
+    for (let i = 1; i < tbl.length; i++) {
+      if (OD_in <= tbl[i][0]) {
+        // Linear interpolation between table rows
+        const lo = tbl[i-1], hi = tbl[i];
+        const frac = (OD_in - lo[0]) / (hi[0] - lo[0]);
+        return lo[1] + frac * (hi[1] - lo[1]);
+      }
+    }
+    return tbl[tbl.length - 1][1];
+  },
+
+  // Returns max wall thickness — practical ceiling is (OD-ID)/2 * 0.4
+  getMaxWall(OD_in, ID_in) {
+    return (OD_in - ID_in) / 2 * 0.40;
+  },
+
+  // Minimum convolution pitch = minGrooveWidth + minFinWidth, interpolated for OD
+  getMinPitch(OD_in) {
+    const tbl = Constants.designLimits;
+    const interp = (col) => {
+      if (OD_in <= tbl[0][0]) return tbl[0][col];
+      for (let i = 1; i < tbl.length; i++) {
+        if (OD_in <= tbl[i][0]) {
+          const lo = tbl[i-1], hi = tbl[i];
+          const frac = (OD_in - lo[0]) / (hi[0] - lo[0]);
+          return lo[col] + frac * (hi[col] - lo[col]);
+        }
+      }
+      return tbl[tbl.length - 1][col];
+    };
+    // col 2 = minGrooveWidth, col 4 = minFinWidth
+    return interp(2) + interp(4);
+  },
+
+  validate(OD, ID, t, L, N) {
+    const warnings = [];
+    const ratio = ID / OD;
+    const minWall = this.getMinWall(OD);
+    const maxWall = this.getMaxWall(OD, ID);
+    const maxOD = 12.0;
+    const maxL  = 9.0;
+    const n = State.n_pitch; // convolution pitch (primary input now)
+
+    if (OD > maxOD) {
+      warnings.push({ level: 'err', msg: `OD ${Units.fmt(OD)} ${Units.suffix()} exceeds max ${Units.fmt(maxOD)} ${Units.suffix()}` });
+    }
+    if (L > maxL) {
+      warnings.push({ level: 'err', msg: `Active length L = N×n = ${Units.fmt(L)} ${Units.suffix()} exceeds max 9 in (${Units.fmt(maxL)} ${Units.suffix()})` });
+    }
+    if (ratio < 0.60) {
+      warnings.push({ level: 'err', msg: `ID/OD ratio ${ratio.toFixed(3)} is below minimum 0.60` });
+    } else if (ratio < 0.65) {
+      warnings.push({ level: 'warn', msg: `ID/OD ratio ${ratio.toFixed(3)} is below optimal 0.65` });
+    } else {
+      warnings.push({ level: 'ok', msg: `ID/OD ratio ${ratio.toFixed(3)} ✓` });
+    }
+    if (t < minWall) {
+      warnings.push({ level: 'err', msg: `Wall ${Units.fmt(t,4)} ${Units.suffix()} below min ${Units.fmt(minWall,4)} ${Units.suffix()} for this OD` });
+    } else if (t > maxWall) {
+      warnings.push({ level: 'warn', msg: `Wall ${Units.fmt(t,4)} ${Units.suffix()} unusually thick for this OD/ID` });
+    } else {
+      warnings.push({ level: 'ok', msg: `Wall thickness ${Units.fmt(t,4)} ${Units.suffix()} ✓` });
+    }
+    const minPitch = this.getMinPitch(OD);
+    if (n < minPitch) {
+      warnings.push({ level: 'err', msg: `Conv. pitch ${Units.fmt(n,4)} ${Units.suffix()} below min ${Units.fmt(minPitch,4)} ${Units.suffix()} for this OD` });
+    } else {
+      warnings.push({ level: 'ok', msg: `Conv. pitch ${Units.fmt(n,4)} ${Units.suffix()} ✓` });
+    }
+    if (OD - ID - t <= 0) {
+      warnings.push({ level: 'err', msg: `Convolution depth (O−I−t) ≤ 0 — invalid geometry` });
+    }
+    return warnings;
+  },
+};
+
+/* ============================================================
+   FORMULAS  (all inputs/outputs in INCHES and PSI)
+============================================================ */
+const Formulas = {
+  // Guard against degenerate geometry
+  depth(O, I, t) { return O - I - t; },
+
+  pressureRating(O, I, t) {
+    const d = this.depth(O, I, t);
+    if (d <= 0) return { nominal: 0, proof: 0, burst: 0 };
+    const nominal = (1.25e6 * t * t) / (d * d);
+    return { nominal, proof: nominal * 1.75, burst: nominal * 2.50 };
+  },
+
+  strokeRating(O, I, t, N, mode) {
+    const d = this.depth(O, I, t);
+    if (d <= 0 || t <= 0) return 0;
+    const s100k = (0.0010 * d * d * N) / t;
+    // Extension is 75% of compression stroke
+    return mode === 'extension' ? s100k * 0.75 : s100k;
+  },
+
+  // Interpolate de-rating curve
+  pressureDerating(workingPressureFraction) {
+    const curve = Constants.deratingCurve;
+    const x = workingPressureFraction;
+    if (x <= curve[0][0]) return curve[0][1];
+    for (let i = 1; i < curve.length; i++) {
+      if (x <= curve[i][0]) {
+        const lo = curve[i-1], hi = curve[i];
+        const frac = (x - lo[0]) / (hi[0] - lo[0]);
+        return lo[1] + frac * (hi[1] - lo[1]);
+      }
+    }
+    return 0.0;
+  },
+
+  usableStroke(ratedStroke, workingPressureFraction, lifeCycleIndex) {
+    const pDerate   = this.pressureDerating(workingPressureFraction);
+    const lifeFactor = Constants.lifeFactors[lifeCycleIndex];
+    return ratedStroke * pDerate * lifeFactor;
+  },
+
+  springRate(O, I, t, N) {
+    const d = this.depth(O, I, t);
+    if (d <= 0 || N <= 0) return 0;
+    return (4.3 * Constants.E * (O + I) * Math.pow(t, 3)) / (Math.pow(d, 3) * N);
+  },
+
+  effectiveArea(O, I) {
+    return 0.785 * Math.pow(O + I, 2) / 4;
+  },
+
+  // Critical buckling pressure
+  // n = convolution pitch (L/N), r = spring rate per convolution (R*N), L = active length
+  criticalBucklingPressure(L, N, R) {
+    if (L <= 0) return 0;
+    const n_pitch = L / N;         // length of one convolution
+    const r_one   = R * N;         // spring rate of one convolution
+    return (4.2 * n_pitch * r_one) / (L * L);
+  },
+};
+
+/* ============================================================
+   SLIDER CONFIGURATION
+   Ranges in INTERNAL units (inches).
+   Rendered to display unit dynamically.
+============================================================ */
+function getSliderConfig() {
+  const ID = State.OD * State.ratio;
+  const minWall = DesignLimits.getMinWall(State.OD);
+  const maxWall = DesignLimits.getMaxWall(State.OD, ID);
+  return {
+    OD:    { min: 0.063, max: 12.0, step: 0.001, val: State.OD },
+    ratio: { min: 0.60,  max: 0.95, step: 0.005, val: State.ratio },
+    t:     { min: minWall, max: Math.max(minWall, maxWall), step: 0.0001, val: State.t },
+    n:     { min: DesignLimits.getMinPitch(State.OD),
+             max: DesignLimits.getMaxPitch(State.OD, State.OD * State.ratio, State.t),
+             step: 0.0001, val: State.n_pitch },
+    N:     { min: 1,     max: 500,  step: 0.5,   val: State.N },
+    Pwork: { min: 0,     max: 120,  step: 1,     val: State.Pwork_pct },
+  };
+}
+
+/* ============================================================
+   UI — SLIDER RENDERING & UPDATES
+============================================================ */
+const UI = {
+  init() {
+    this.initSliders();
+    this.initLifeSelector();
+    this.initInputBoxes();
+    updateAll();
+  },
+
+  initSliders() {
+    // OD
+    this.bindSlider('sl-OD', 'val-OD', 'min-OD', 'max-OD', (v_display) => {
+      State.OD = Units.toInternal(parseFloat(v_display));
+    });
+
+    // ratio
+    this.bindSliderDirect('sl-ratio', 'val-ratio', (v) => {
+      State.ratio = parseFloat(v);
+    }, (v) => v.toFixed(3), 0.60, 0.95, 0.005, State.ratio);
+
+    // t (wall thickness)
+    this.bindSlider('sl-t', 'val-t', 'min-t', 'max-t', (v_display) => {
+      State.t = Units.toInternal(parseFloat(v_display));
+    });
+
+    // N (convolution count, dimensionless)
+    const slN = document.getElementById('sl-N');
+    slN.min = 1; slN.max = 500; slN.step = 0.5; slN.value = State.N;
+    slN.addEventListener('input', () => {
+      State.N = parseFloat(slN.value);
+      { const ve = document.getElementById('val-N'); if (ve) ve.value = State.N % 1 === 0 ? State.N : State.N.toFixed(1); }
+      updateAll();
+    });
+    { const ve = document.getElementById('val-N'); if (ve) ve.value = State.N; }
+
+    // n (convolution pitch)
+    this.bindSlider('sl-n', 'val-n', 'min-n', 'max-n', (v_display) => {
+      State.n_pitch = Units.toInternal(parseFloat(v_display));
+    });
+
+    // Pwork%
+    const slP = document.getElementById('sl-Pwork');
+    slP.min = 0; slP.max = 120; slP.step = 1; slP.value = State.Pwork_pct;
+    slP.addEventListener('input', () => {
+      State.Pwork_pct = parseInt(slP.value);
+      { const ve = document.getElementById('val-Pwork'); if (ve) ve.value = State.Pwork_pct + '%'; }
+      updateAll();
+    });
+    { const ve = document.getElementById('val-Pwork'); if (ve) ve.value = State.Pwork_pct + '%'; }
+  },
+
+  // Bind a dimensional slider (converts between display and internal units)
+  bindSlider(sliderId, valId, minId, maxId, onchange) {
+    const sl = document.getElementById(sliderId);
+    sl.addEventListener('input', () => {
+      onchange(sl.value);
+      this.refreshAllSliderAppearances(sliderId);
+      updateAll();
+    });
+  },
+
+  // Bind a dimensionless slider directly
+  bindSliderDirect(sliderId, valId, onchange, fmt, min, max, step, initial) {
+    const sl = document.getElementById(sliderId);
+    sl.min = min; sl.max = max; sl.step = step; sl.value = initial;
+    { const ve = document.getElementById(valId); if (ve) ve.value = fmt(initial); }
+    sl.addEventListener('input', () => {
+      const v = parseFloat(sl.value);
+      onchange(v);
+      { const ve = document.getElementById(valId); if (ve) ve.value = fmt(v); }
+      updateAll();
+    });
+  },
+
+  // ---- Input box binding ----
+  // Parses a typed value, clamps it, updates State, and calls updateAll.
+  // getMin/getMax: functions returning current valid range in INTERNAL units (inches).
+  // toInternal: converts display value to inches (or identity for dimensionless).
+  // toDisplay: converts internal value to display string for reverting on bad input.
+  // onValid(internalVal): called with the clamped internal value to update State.
+  bindInputBox(inputId, getMin, getMax, toInternal, toDisplay, onValid) {
+    const el = document.getElementById(inputId);
+    if (!el) return;
+
+    el.addEventListener('focus', () => {
+      // Strip unit suffix on focus so user can type a clean number
+      el.value = el.value.replace(/[^0-9.\-]/g, '');
+    });
+
+    el.addEventListener('blur', () => {
+      this._commitInputBox(el, getMin, getMax, toInternal, toDisplay, onValid);
+    });
+
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        el.blur();
+      } else if (e.key === 'Escape') {
+        // Revert to current state value without committing
+        const currentInternal = toInternal(null); // pass null = read current state
+        el.value = toDisplay(currentInternal);
+        el.blur();
+      }
+    });
+  },
+
+  _commitInputBox(el, getMin, getMax, toInternal, toDisplay, onValid) {
+    const raw = el.value.trim();
+    const parsed = parseFloat(raw);
+
+    if (isNaN(parsed)) {
+      // Invalid — flash red and revert
+      this._flashError(el);
+      el.value = toDisplay(null);
+      return;
+    }
+
+    const internalVal = toInternal(parsed);
+    const minVal = getMin();
+    const maxVal = getMax();
+    const clamped = Math.min(Math.max(internalVal, minVal), maxVal);
+
+    onValid(clamped);
+    this.refreshAllSliderAppearances();
+    updateAll();
+  },
+
+  _flashError(el) {
+    el.classList.add('input-error');
+    setTimeout(() => el.classList.remove('input-error'), 600);
+  },
+
+  // Wire all input boxes after sliders are initialised
+  initInputBoxes() {
+    // OD
+    this.bindInputBox('val-OD',
+      () => 0.063,
+      () => 12.0,
+      (v) => Units.toInternal(v),
+      (_) => Units.fmt(State.OD) + ' ' + Units.suffix(),
+      (v) => {
+        State.OD = v;
+        // Clamp wall if needed
+        const ID = State.OD * State.ratio;
+        const minW = DesignLimits.getMinWall(State.OD);
+        const maxW = DesignLimits.getMaxWall(State.OD, ID);
+        State.t = Math.min(Math.max(State.t, minW), maxW);
+      }
+    );
+
+    // Ratio (dimensionless — no unit conversion)
+    this.bindInputBox('val-ratio',
+      () => 0.60,
+      () => 0.95,
+      (v) => v,           // already dimensionless
+      (_) => State.ratio.toFixed(3),
+      (v) => { State.ratio = v; }
+    );
+
+    // Wall thickness — no hard max clamp; warnings handle out-of-range
+    this.bindInputBox('val-t',
+      () => 0.0003,
+      () => 0.1,
+      (v) => Units.toInternal(v),
+      (_) => Units.fmt(State.t) + ' ' + Units.suffix(),
+      (v) => { State.t = v; }
+    );
+
+    // N (convolutions — dimensionless, round to 0.5)
+    this.bindInputBox('val-N',
+      () => 1,
+      () => 500,
+      (v) => Math.round(v * 2) / 2,   // round to nearest 0.5
+      (_) => State.N % 1 === 0 ? String(State.N) : State.N.toFixed(1),
+      (v) => { State.N = v; }
+    );
+
+    // Convolution pitch n — no hard max; warnings handle out-of-range
+    this.bindInputBox('val-n',
+      () => DesignLimits.getMinPitch(State.OD),
+      () => 1.0,
+      (v) => Units.toInternal(v),
+      (_) => Units.fmt(State.n_pitch) + ' ' + Units.suffix(),
+      (v) => { State.n_pitch = v; }
+    );
+
+    // Working pressure %
+    this.bindInputBox('val-Pwork',
+      () => 0,
+      () => 120,
+      (v) => v,           // dimensionless percentage
+      (_) => State.Pwork_pct + '%',
+      (v) => { State.Pwork_pct = Math.round(v); }
+    );
+  },
+
+  // Refresh all slider ranges and displayed values to match current unit + state.
+  // activeId: ID of the slider currently being dragged — its .value is NOT written
+  // back, preventing the browser from snapping the thumb mid-drag.
+  refreshAllSliderAppearances(activeId = null) {
+    // OD — absolute range from design limits table
+    this.setSlider('sl-OD', 'val-OD', 'min-OD', 'max-OD',
+      State.OD, 0.063, 12.0, Units.dimStep(), activeId);
+
+    // Wall thickness — fixed absolute range; warnings tell user the valid range
+    // for their current OD. Min = smallest entry in design limits table (0.063" OD row).
+    // Max = practical ceiling of 0.1 in covers all realistic cases.
+    this.setSlider('sl-t', 'val-t', 'min-t', 'max-t',
+      State.t, 0.0003, 0.1, Units.dimStep(), activeId);
+
+    // Conv. pitch — fixed absolute range; warnings tell user the valid range.
+    // Min = smallest entry in table (0.063" OD: 0.003+0.002 = 0.005 in).
+    // Max = 1.0 in covers all realistic bellows geometries.
+    this.setSlider('sl-n', 'val-n', 'min-n', 'max-n',
+      State.n_pitch, 0.005, 1.0, Units.dimStep(), activeId);
+
+    // Ratio (dimensionless — never the active dragged slider in this path)
+    const slR = document.getElementById('sl-ratio');
+    slR.value = State.ratio;
+    { const ve = document.getElementById('val-ratio'); if (ve) ve.value = State.ratio.toFixed(3); }
+
+    // N
+    const slN = document.getElementById('sl-N');
+    slN.value = State.N;
+    { const ve = document.getElementById('val-N'); if (ve) ve.value = State.N % 1 === 0 ? State.N : State.N.toFixed(1); }
+
+    // Pwork
+    document.getElementById('sl-Pwork').value = State.Pwork_pct;
+    { const ve = document.getElementById('val-Pwork'); if (ve) ve.value = State.Pwork_pct + '%'; }
+  },
+
+  // activeId: if this slider's ID matches, skip writing .value (user is dragging it)
+  setSlider(sliderId, valId, minId, maxId, valIn, minIn, maxIn, step, activeId = null) {
+    const sl = document.getElementById(sliderId);
+    const minD = Units.toDisplay(minIn);
+    const maxD = Units.toDisplay(maxIn);
+    const valD = Units.toDisplay(valIn);
+    const stepD = Units.toDisplay(step);
+
+    sl.min = minD.toFixed(6);
+    sl.max = maxD.toFixed(6);
+    sl.step = stepD.toFixed(6);
+    if (sliderId !== activeId) {
+      sl.value = valD.toFixed(6);
+    }
+
+    if (minId) document.getElementById(minId).textContent = minD.toFixed(State.unit === 'mm' ? 2 : 4) + ' ' + Units.suffix();
+    if (maxId) document.getElementById(maxId).textContent = maxD.toFixed(State.unit === 'mm' ? 2 : 4) + ' ' + Units.suffix();
+    if (valId) { const ve = document.getElementById(valId); if (ve) ve.value = Units.fmt(valIn) + ' ' + Units.suffix(); }
+  },
+
+  initLifeSelector() {
+    const container = document.getElementById('life-selector');
+    Constants.lifeLabels.forEach((label, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'life-btn' + (i === State.lifeCycleIndex ? ' active' : '');
+      btn.textContent = label;
+      btn.addEventListener('click', () => {
+        State.lifeCycleIndex = i;
+        document.querySelectorAll('.life-btn').forEach((b, j) => {
+          b.classList.toggle('active', j === i);
+        });
+        updateAll();
+      });
+      container.appendChild(btn);
+    });
+  },
+
+  renderWarnings(warnings) {
+    const area = document.getElementById('warnings-area');
+    if (!warnings.length) {
+      area.innerHTML = '<div class="no-warnings">No issues detected.</div>';
+      return;
+    }
+    area.innerHTML = warnings.map(w => `
+      <div class="warning-pill ${w.level}">
+        <div class="pill-dot"></div>
+        <span>${w.msg}</span>
+      </div>
+    `).join('');
+  },
+
+  renderOutputs(res) {
+    const u = Units;
+    const suf = u.suffix();
+
+    // Pressure labels
+    const pLabel = State.unit === 'mm' ? 'kPa' : 'psi';
+    const pConv  = State.unit === 'mm' ? 6.89476 : 1; // psi → kPa
+    const fmtP   = (v) => (v * pConv).toFixed(1);
+
+    document.getElementById('out-P-nom').innerHTML   = `${fmtP(res.pressure.nominal)}<span class="unit"> ${pLabel}</span>`;
+    document.getElementById('out-P-proof').innerHTML = `${fmtP(res.pressure.proof)}<span class="unit"> ${pLabel}</span>`;
+    document.getElementById('out-P-burst').innerHTML = `${fmtP(res.pressure.burst)}<span class="unit"> ${pLabel}</span>`;
+    document.getElementById('out-P-working').innerHTML = `${fmtP(res.workingPressure)}<span class="unit"> ${pLabel}</span>`;
+
+    // PSI sub-lines — always show psi values; hide when already in psi mode
+    const showPsi = State.unit === 'mm';
+    const fmtPsi = (v) => v.toFixed(1) + ' psi';
+    const psiVals = [
+      ['out-P-nom-psi',     res.pressure.nominal],
+      ['out-P-proof-psi',   res.pressure.proof],
+      ['out-P-burst-psi',   res.pressure.burst],
+      ['out-P-working-psi', res.workingPressure],
+    ];
+    psiVals.forEach(([id, v]) => {
+      const el = document.getElementById(id);
+      el.textContent = showPsi ? fmtPsi(v) : '';
+    });
+
+    // Stroke
+    document.getElementById('out-S').textContent = u.fmt(res.stroke);
+    document.getElementById('out-S-unit').textContent = suf;
+    document.getElementById('sub-S').innerHTML =
+      `<span>Mode:</span><span class="val">${State.mode === 'extension' ? 'Extension (75% of formula)' : 'Compression'}</span>`;
+
+    // Usable stroke — color the card
+    const usablePct = res.stroke > 0 ? (res.usableStroke / res.stroke * 100) : 0;
+    document.getElementById('out-Su').textContent = u.fmt(res.usableStroke);
+    document.getElementById('out-Su-unit').textContent = suf;
+    document.getElementById('sub-Su').innerHTML =
+      `<span>P-derate:</span><span class="val">×${res.pDerate.toFixed(2)}</span> &nbsp;` +
+      `<span>Life factor:</span><span class="val">×${res.lifeFactor.toFixed(2)}</span> &nbsp;` +
+      `<span>→</span><span class="val">${usablePct.toFixed(0)}% of rated</span>`;
+
+    const cardUsable = document.getElementById('card-usable');
+    cardUsable.classList.remove('accent-green', 'accent-warn', 'accent-err');
+    if (usablePct > 60) cardUsable.classList.add('accent-green');
+    else if (usablePct > 30) cardUsable.classList.add('accent-warn');
+    else cardUsable.classList.add('accent-err');
+
+    // Spring rate
+    let R_display, R_unit;
+    if (State.unit === 'mm') {
+      R_display = (res.springRate * 0.175127).toFixed(2); // lb/in → N/mm
+      R_unit = 'N/mm';
+    } else {
+      R_display = res.springRate.toFixed(2);
+      R_unit = 'lb/in';
+    }
+    document.getElementById('out-R').textContent = R_display;
+    document.getElementById('out-R-unit').textContent = R_unit;
+
+    // Effective area
+    let Ae_display, Ae_unit;
+    if (State.unit === 'mm') {
+      Ae_display = (res.effectiveArea * 645.16).toFixed(1); // in² → mm²
+      Ae_unit = 'mm²';
+    } else {
+      Ae_display = res.effectiveArea.toFixed(4);
+      Ae_unit = 'in²';
+    }
+    document.getElementById('out-Ae').textContent = Ae_display;
+    document.getElementById('out-Ae-unit').textContent = Ae_unit;
+
+    // Buckling pressure
+    document.getElementById('out-Pc').textContent = fmtP(res.bucklingPressure);
+    document.getElementById('out-Pc-unit').textContent = pLabel;
+    const safetyFactor = res.bucklingPressure > 0 ? res.workingPressure / res.bucklingPressure : 0;
+    const cardPc = document.getElementById('card-Pc');
+    cardPc.classList.remove('accent-green', 'accent-warn', 'accent-err');
+    let pcMsg = '';
+    if (safetyFactor > 0.9) {
+      cardPc.classList.add('accent-err');
+      pcMsg = `⚠ Working pressure is ${(safetyFactor*100).toFixed(0)}% of Pc — buckling risk`;
+    } else if (safetyFactor > 0.6) {
+      cardPc.classList.add('accent-warn');
+      pcMsg = `Working pressure is ${(safetyFactor*100).toFixed(0)}% of Pc`;
+    } else {
+      cardPc.classList.add('accent-green');
+      pcMsg = `Safety margin OK (${(safetyFactor*100).toFixed(0)}% of Pc)`;
+    }
+    document.getElementById('sub-Pc').textContent = pcMsg;
+
+    // Geometry summary
+    const ID = State.OD * State.ratio;
+    document.getElementById('out-geo').innerHTML =
+      `<span>OD:</span> <span class="val">${u.fmt(State.OD)} ${suf}</span><br>` +
+      `<span>ID:</span> <span class="val">${u.fmt(ID)} ${suf}</span><br>` +
+      `<span>Wall (t):</span> <span class="val">${u.fmt(State.t)} ${suf}</span><br>` +
+      `<span>Conv. pitch (n):</span> <span class="val">${u.fmt(State.n_pitch)} ${suf}</span><br>` +
+      `<span>Active length (L = N×n):</span> <span class="val">${u.fmt(res.L)} ${suf}</span><br>` +
+      `<span>Conv. depth (O−I−t):</span> <span class="val">${u.fmt(State.OD - ID - State.t)} ${suf}</span>`;
+
+    // Derived notes
+    document.getElementById('dn-ID').textContent    = u.fmt(ID) + ' ' + suf;
+    document.getElementById('dn-ratio').textContent = (ID/State.OD).toFixed(3);
+    document.getElementById('dn-L').textContent     = u.fmt(res.L) + ' ' + suf;
+  },
+};
+
+/* ============================================================
+   DIAGRAM — SVG Cross-Section Renderer
+============================================================ */
+const Diagram = {
+  render(OD, ID, t, N, L) {
+    const svg = document.getElementById('bellows-svg');
+    svg.innerHTML = '';
+
+    const W = 800, H = 200;
+    const margin = { left: 110, right: 110, top: 28, bottom: 28 };
+
+    // Drawing area
+    const drawW = W - margin.left - margin.right;
+    const drawH = H - margin.top - margin.bottom;
+
+    // Scale: OD maps to drawH
+    const scale = drawH / OD;
+    const halfOD = (OD / 2) * scale;
+    const halfID = (ID / 2) * scale;
+    const cy = H / 2;   // vertical center (= axis of symmetry)
+    const lx = margin.left;  // left x of bellows
+    const rx = W - margin.right; // right x
+
+    const depth = OD - ID - t; // convolution depth in inches
+    const halfDepth = (depth / 2) * scale;
+
+    // Number of complete convolutions to draw (cap for rendering clarity)
+    const Ndraw = Math.min(Math.round(N), 30);
+    const pitchPx = drawW / Math.max(Ndraw, 1);
+
+    // Colors
+    const C = {
+      metal:    '#b0bec5',
+      metalFill:'#1e2630',
+      dimLine:  '#3a4a60',
+      dimText:  '#7a9ab0',
+      label:    '#f5c842',
+      axis:     '#2a3a50',
+      err:      '#f55252',
+    };
+
+    const ns = 'http://www.w3.org/2000/svg';
+    const mk = (tag, attrs) => {
+      const el = document.createElementNS(ns, tag);
+      Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+      return el;
+    };
+    const txt = (x, y, content, attrs = {}) => {
+      const el = mk('text', { x, y, ...attrs });
+      el.textContent = content;
+      return el;
+    };
+
+    // ---- Background center axis line ----
+    svg.appendChild(mk('line', {
+      x1: lx - 20, y1: cy, x2: rx + 20, y2: cy,
+      stroke: C.axis, 'stroke-width': 1, 'stroke-dasharray': '6,4',
+    }));
+
+    // ---- Build bellows profile path ----
+    // The profile is a longitudinal cross-section showing one half (top wall),
+    // mirrored for bottom wall. We draw both explicitly.
+
+    const valid = depth > 0;
+    const wallPx = t * scale;
+
+    // Outer half: y = cy - halfOD (top outer surface)
+    // Inner half: y = cy - halfID (top inner surface, groove floor)
+    // We draw alternating convolutions (fins and grooves)
+
+    const buildProfile = (yOuter, yInner, yOuterWall, yInnerWall) => {
+      // yOuter = top of fin
+      // yInner = bottom of groove (closest to axis)
+      // yOuterWall = yOuter + wallPx (inner surface of outer fin face)
+      // yInnerWall = yInner - wallPx (outer surface of inner groove floor)
+
+      let path = '';
+      let x = lx;
+
+      // Start from left end sleeve
+      path += `M ${x} ${yOuter}`;
+
+      if (!valid || Ndraw === 0) {
+        // Simple rectangle if degenerate
+        path += ` L ${rx} ${yOuter}`;
+        return path;
+      }
+
+      for (let i = 0; i < Ndraw; i++) {
+        const x0 = lx + i * pitchPx;
+        const x1 = lx + (i + 0.5) * pitchPx;
+        const x2 = lx + (i + 1) * pitchPx;
+
+        // Each convolution: fin → groove → fin
+        // Simplified as a square wave profile
+        // Going right: drop to groove, traverse, rise back to fin level
+        if (i === 0) path += ` L ${x0} ${yOuter}`;
+        path += ` L ${x0 + pitchPx * 0.1} ${yOuter}`;  // fin top
+        path += ` L ${x0 + pitchPx * 0.3} ${yInner}`;  // descend into groove
+        path += ` L ${x0 + pitchPx * 0.7} ${yInner}`;  // groove floor
+        path += ` L ${x0 + pitchPx * 0.9} ${yOuter}`;  // rise to fin
+        path += ` L ${x2} ${yOuter}`;
+      }
+      return path;
+    };
+
+    if (valid) {
+      const yFinTop    = cy - halfOD;
+      const yGrooveFlr = cy - halfID;
+
+      // ---- Top wall profile (outer contour) ----
+      const topPath = buildProfile(yFinTop, yGrooveFlr);
+
+      // ---- Build filled cross-section shape ----
+      // Outer top profile → straight right end sleeve → inner top line → left end sleeve
+      let fillTop = `M ${lx} ${yFinTop}`;
+      for (let i = 0; i < Ndraw; i++) {
+        const x0 = lx + i * pitchPx;
+        const x2 = lx + (i + 1) * pitchPx;
+        fillTop += ` L ${x0 + pitchPx * 0.1} ${yFinTop}`;
+        fillTop += ` L ${x0 + pitchPx * 0.3} ${yGrooveFlr}`;
+        fillTop += ` L ${x0 + pitchPx * 0.7} ${yGrooveFlr}`;
+        fillTop += ` L ${x0 + pitchPx * 0.9} ${yFinTop}`;
+        fillTop += ` L ${x2} ${yFinTop}`;
+      }
+      // Inner (wall thickness inward)
+      const yFinInner    = yFinTop + wallPx;
+      const yGrooveInner = yGrooveFlr + wallPx;
+      fillTop += ` L ${rx} ${yFinInner}`;
+      for (let i = Ndraw - 1; i >= 0; i--) {
+        const x0 = lx + i * pitchPx;
+        const x2 = lx + (i + 1) * pitchPx;
+        fillTop += ` L ${x2 - pitchPx * 0.1} ${yFinInner}`;
+        fillTop += ` L ${x2 - pitchPx * 0.3} ${yGrooveInner}`;
+        fillTop += ` L ${x2 - pitchPx * 0.7} ${yGrooveInner}`;
+        fillTop += ` L ${x2 - pitchPx * 0.9} ${yFinInner}`;
+        fillTop += ` L ${x0} ${yFinInner}`;
+      }
+      fillTop += ' Z';
+
+      // ---- DIMENSION LINES ----
+      const dimColor = C.dimLine;
+      const dimTxt   = C.dimText;
+      const arrowSz  = 4;
+
+      // Helper: horizontal dimension line
+      // labelBelow: if true, label is placed below the line instead of above
+      const hDim = (x1, x2, y, label, color = dimColor, tcolor = dimTxt, labelBelow = false) => {
+        // Line
+        svg.appendChild(mk('line', { x1, y1: y, x2, y2: y, stroke: color, 'stroke-width': 1 }));
+        // Arrows
+        svg.appendChild(mk('polygon', {
+          points: `${x1},${y} ${x1+arrowSz},${y-arrowSz/2} ${x1+arrowSz},${y+arrowSz/2}`,
+          fill: color,
+        }));
+        svg.appendChild(mk('polygon', {
+          points: `${x2},${y} ${x2-arrowSz},${y-arrowSz/2} ${x2-arrowSz},${y+arrowSz/2}`,
+          fill: color,
+        }));
+        // Tick lines
+        svg.appendChild(mk('line', { x1, y1: y - 5, x2: x1, y2: y + 5, stroke: color, 'stroke-width': 1 }));
+        svg.appendChild(mk('line', { x1: x2, y1: y - 5, x2, y2: y + 5, stroke: color, 'stroke-width': 1 }));
+        // Label — above or below the line
+        const lx2 = (x1 + x2) / 2;
+        const ly2 = labelBelow ? y + 12 : y - 5;
+        const el = txt(lx2, ly2, label, {
+          fill: tcolor, 'font-size': '10', 'font-family': 'Courier New, monospace',
+          'text-anchor': 'middle',
+        });
+        svg.appendChild(el);
+      };
+
+      // Helper: vertical dimension line
+      // labelFrac: 0=top, 0.5=middle, 1=bottom of the span (default 0.5)
+      const vDim = (x, y1, y2, label, side = 'left', color = dimColor, tcolor = dimTxt, labelFrac = 0.5) => {
+        svg.appendChild(mk('line', { x1: x, y1, x2: x, y2, stroke: color, 'stroke-width': 1 }));
+        svg.appendChild(mk('polygon', {
+          points: `${x},${y1} ${x-arrowSz/2},${y1+arrowSz} ${x+arrowSz/2},${y1+arrowSz}`,
+          fill: color,
+        }));
+        svg.appendChild(mk('polygon', {
+          points: `${x},${y2} ${x-arrowSz/2},${y2-arrowSz} ${x+arrowSz/2},${y2-arrowSz}`,
+          fill: color,
+        }));
+        svg.appendChild(mk('line', { x1: x - 5, y1, x2: x + 5, y2: y1, stroke: color, 'stroke-width': 1 }));
+        svg.appendChild(mk('line', { x1: x - 5, y1: y2, x2: x + 5, y2, stroke: color, 'stroke-width': 1 }));
+        if (label !== null) {
+          const ly = y1 + (y2 - y1) * labelFrac;
+          const el = txt(side === 'left' ? x - 7 : x + 7, ly + 3, label, {
+            fill: tcolor, 'font-size': '10', 'font-family': 'Courier New, monospace',
+            'text-anchor': side === 'left' ? 'end' : 'start',
+          });
+          svg.appendChild(el);
+        }
+      };
+
+      // ---- LAYER 1: Inner bore fill (rendered first, underneath everything) ----
+      svg.appendChild(mk('rect', {
+        x: lx, y: yGrooveFlr,
+        width: drawW, height: (cy - yGrooveFlr) * 2,
+        fill: '#0d1520', opacity: '0.85',
+      }));
+      // Dashed lines at groove floor level (top and bottom) to mark ID boundary
+      svg.appendChild(mk('line', {
+        x1: lx, y1: yGrooveFlr, x2: rx, y2: yGrooveFlr,
+        stroke: '#3a5070', 'stroke-width': 1, 'stroke-dasharray': '4,3',
+      }));
+      svg.appendChild(mk('line', {
+        x1: lx, y1: cy + halfID, x2: rx, y2: cy + halfID,
+        stroke: '#3a5070', 'stroke-width': 1, 'stroke-dasharray': '4,3',
+      }));
+
+      // ---- LAYER 2: Metal wall fills (on top of bore) ----
+      // Draw top wall fill
+      svg.appendChild(mk('path', { d: fillTop, fill: C.metal, opacity: '0.7' }));
+      // Draw bottom wall (mirror about cy)
+      const fillBot = fillTop
+        .replace(/(-?\d+\.?\d*)\s+(-?\d+\.?\d*)/g, (_, px, py) => {
+          const ny = 2 * cy - parseFloat(py);
+          return `${px} ${ny.toFixed(2)}`;
+        });
+      svg.appendChild(mk('path', { d: fillBot, fill: C.metal, opacity: '0.7' }));
+
+      // ---- LAYER 3: Outer profile lines (on top of fills) ----
+      // Top outer profile line
+      svg.appendChild(mk('path', { d: buildProfile(yFinTop, yGrooveFlr), fill: 'none', stroke: '#d0dce8', 'stroke-width': '1.5' }));
+      // Bottom outer profile line
+      const botPath2 = buildProfile(cy + halfOD, cy + halfID);
+      svg.appendChild(mk('path', { d: botPath2, fill: 'none', stroke: '#d0dce8', 'stroke-width': '1.5' }));
+      // End caps
+      svg.appendChild(mk('line', { x1: lx, y1: yFinTop, x2: lx, y2: cy + halfOD, stroke: '#d0dce8', 'stroke-width': 2 }));
+      svg.appendChild(mk('line', { x1: rx, y1: yFinTop, x2: rx, y2: cy + halfOD, stroke: '#d0dce8', 'stroke-width': 2 }));
+
+      // ---- LAYER 4: Dimension lines & labels ----
+
+      // OD dimension line — draw line + arrows first, label added last so it sits on top
+      vDim(lx - 15, yFinTop, cy + halfOD,
+        null,
+        'left', '#f5c842', '#f5c842',
+        /* labelFrac */ 0.18);
+
+      // ID dimension line — adjacent to OD line, label in lower portion
+      if (halfID > 8) {
+        vDim(lx - 15, yGrooveFlr, cy + halfID,
+          `ID ${Units.fmt(ID)} ${Units.suffix()}`,
+          'left', C.dimLine, C.dimText,
+          /* labelFrac */ 0.82);
+      }
+
+      // OD label drawn last so it always renders on top of the ID line
+      svg.appendChild(txt(lx - 15 - 7, yFinTop + (cy + halfOD - yFinTop) * 0.18 + 3,
+        `OD ${Units.fmt(OD)} ${Units.suffix()}`, {
+        fill: '#f5c842', 'font-size': '10', 'font-family': 'Courier New, monospace',
+        'text-anchor': 'end',
+      }));
+
+      // Wall thickness annotation (top right corner)
+      if (wallPx > 4) {
+        vDim(rx + 15, yFinTop, yFinTop + wallPx,
+          `t=${Units.fmt(t)} ${Units.suffix()}`,
+          'right', C.dimLine, C.dimText, 0.5);
+      }
+
+      // Active length dimension (bottom) — label BELOW the line
+      const Ly = cy + halfOD + 14;
+      hDim(lx, rx, Ly, `L = ${Units.fmt(L)} ${Units.suffix()}`, C.dimLine, C.dimText, /* labelBelow */ true);
+
+      // Convolution pitch annotation — shown at TOP of bellows, above the fin line
+      if (Ndraw > 1 && pitchPx > 30) {
+        hDim(lx, lx + pitchPx, yFinTop - 10,
+          `n=${Units.fmt(State.n_pitch)} ${Units.suffix()}`,
+          C.dimLine, C.dimText, /* labelBelow */ false);
+      }
+
+      // N label top center
+      svg.appendChild(txt(W / 2, margin.top - 10, `N = ${State.N % 1 === 0 ? State.N : State.N.toFixed(1)} convolutions`, {
+        fill: C.dimText, 'font-size': '10', 'font-family': 'Courier New, monospace',
+        'text-anchor': 'middle',
+      }));
+
+    } else {
+      // Invalid geometry — show error message
+      svg.appendChild(txt(W / 2, H / 2, 'Invalid geometry — adjust parameters', {
+        fill: C.err, 'font-size': '13', 'font-family': 'Courier New, monospace',
+        'text-anchor': 'middle',
+      }));
+    }
+  },
+};
+
+/* ============================================================
+   MAIN UPDATE FUNCTION
+============================================================ */
+function updateAll() {
+  const O = State.OD;
+  const I = O * State.ratio;
+  const t = State.t;
+  const N = State.N;
+  const Pwork_pct = State.Pwork_pct / 100;
+
+  // Derive active length from pitch × convolutions
+  const L = State.n_pitch * N;
+
+  // Formulas
+  const pressure         = Formulas.pressureRating(O, I, State.t, N);
+  const workingPressure  = pressure.nominal * Pwork_pct;
+  const stroke           = Formulas.strokeRating(O, I, State.t, N, State.mode);
+  const pDerate          = Formulas.pressureDerating(Pwork_pct);
+  const lifeFactor       = Constants.lifeFactors[State.lifeCycleIndex];
+  const usableStroke     = Formulas.usableStroke(stroke, Pwork_pct, State.lifeCycleIndex);
+  const springRate       = Formulas.springRate(O, I, State.t, N);
+  const effectiveArea    = Formulas.effectiveArea(O, I);
+  const bucklingPressure = Formulas.criticalBucklingPressure(L, N, springRate);
+
+  const results = {
+    pressure, workingPressure,
+    stroke, pDerate, lifeFactor, usableStroke,
+    springRate, effectiveArea, bucklingPressure,
+    L,   // pass derived L through for display
+  };
+
+  // Validate constraints (pass derived L)
+  const warnings = DesignLimits.validate(O, I, State.t, L, N);
+
+  // Refresh slider UI to reflect any clamping
+  UI.refreshAllSliderAppearances();
+  UI.renderOutputs(results);
+  UI.renderWarnings(warnings);
+  Diagram.render(O, I, State.t, N, L);
+}
+
+/* ============================================================
+   GLOBAL CONTROLS
+============================================================ */
+function setUnit(unit) {
+  State.unit = unit;
+  document.getElementById('btn-mm').classList.toggle('active', unit === 'mm');
+  document.getElementById('btn-in').classList.toggle('active', unit === 'in');
+  UI.refreshAllSliderAppearances();
+  updateAll();
+}
+
+function setMode(mode) {
+  State.mode = mode;
+  document.getElementById('btn-comp').classList.toggle('active', mode === 'compression');
+  document.getElementById('btn-ext').classList.toggle('active',  mode === 'extension');
+  updateAll();
+}
+
+/* ============================================================
+   SHARE LINK — serialise / deserialise state as URL query params
+============================================================ */
+
+// Encode current State into a query string.
+// All dimensional values stored in inches (internal units) regardless of display unit.
+function stateToQueryString() {
+  const p = new URLSearchParams({
+    od:    State.OD.toFixed(6),
+    ratio: State.ratio.toFixed(6),
+    t:     State.t.toFixed(6),
+    n:     State.N,
+    pitch: State.n_pitch.toFixed(6),
+    p:     State.Pwork_pct,
+    life:  State.lifeCycleIndex,
+    unit:  State.unit,
+    mode:  State.mode,
+  });
+  return p.toString();
+}
+
+// Read URLSearchParams and populate State before UI initialises.
+// Unknown or malformed params are silently ignored.
+function stateFromQueryParams(params) {
+  const float  = (key) => { const v = parseFloat(params.get(key)); return isFinite(v) && v > 0 ? v : null; };
+  const int    = (key) => { const v = parseInt(params.get(key));   return isFinite(v) ? v : null; };
+  const str    = (key) => params.get(key);
+
+  const od    = float('od');    if (od    !== null) State.OD          = od;
+  const ratio = float('ratio'); if (ratio !== null) State.ratio       = Math.min(Math.max(ratio, 0.60), 0.95);
+  const t     = float('t');     if (t     !== null) State.t           = t;
+  const n     = float('n');     if (n     !== null) State.N           = Math.round(Math.min(Math.max(n, 1), 500) * 2) / 2;
+  const pitch = float('pitch'); if (pitch !== null) State.n_pitch     = pitch;
+  const p     = int('p');       if (p     !== null) State.Pwork_pct   = Math.min(Math.max(p, 0), 120);
+  const life  = int('life');    if (life  !== null && life >= 0 && life <= 6) State.lifeCycleIndex = life;
+
+  const unit = str('unit');
+  if (unit === 'mm' || unit === 'in') State.unit = unit;
+
+  const mode = str('mode');
+  if (mode === 'compression' || mode === 'extension') State.mode = mode;
+}
+
+// Copy the share link to clipboard and briefly show feedback on the button.
+function copyShareLink() {
+  const url = window.location.href.split('?')[0] + '?' + stateToQueryString();
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('btn-share');
+    btn.textContent = 'Copied ✓';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copy Link to Clipboard';
+      btn.classList.remove('copied');
+    }, 1500);
+  }).catch(() => {
+    const btn = document.getElementById('btn-share');
+    btn.textContent = 'Copy failed';
+    setTimeout(() => { btn.textContent = 'Copy Link to Clipboard'; }, 2000);
+  });
+}
+
+/* ============================================================
+   INIT
+============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  // Restore state from URL query params if present, before UI initialises
+  const params = new URLSearchParams(window.location.search);
+  if (params.toString()) stateFromQueryParams(params);
+
+  // Sync unit/mode toggle button active states from (possibly restored) State
+  document.getElementById('btn-mm').classList.toggle('active', State.unit === 'mm');
+  document.getElementById('btn-in').classList.toggle('active', State.unit === 'in');
+  document.getElementById('btn-comp').classList.toggle('active', State.mode === 'compression');
+  document.getElementById('btn-ext').classList.toggle('active',  State.mode === 'extension');
+
+  UI.init();
+});
+</script>
+</body>
+</html>
