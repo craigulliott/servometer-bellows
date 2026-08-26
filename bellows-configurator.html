@@ -866,18 +866,15 @@ const Constants = {
   lifeFactors: [1.50, 1.25, 1.00, 0.84, 0.78, 0.75, 0.72],
 
   // De-rating curve: [workingPressureFraction, usableStrokeFraction]
-  // Digitized from the chart in the Servometer Bellows Design Guide
+  // Per the Servometer Bellows Design Guide chart (p.4, "De-Rating Stroke For
+  // Working Pressure"): flat at 1.0 up to 40% of rated pressure, then a single
+  // straight line reaching 0 at 160%. Verified by pixel analysis of the printed
+  // chart (see bellows-design-guide.md, Appendix B); passes through the guide's
+  // worked example (0.8 → 0.67).
   deratingCurve: [
     [0.00, 1.00],
     [0.40, 1.00],
-    [0.50, 0.95],
-    [0.60, 0.87],
-    [0.70, 0.77],
-    [0.80, 0.67],
-    [0.90, 0.50],
-    [1.00, 0.30],
-    [1.10, 0.15],
-    [1.20, 0.05],
+    [1.60, 0.00],
   ],
 };
 
@@ -1073,27 +1070,6 @@ const Formulas = {
 };
 
 /* ============================================================
-   SLIDER CONFIGURATION
-   Ranges in INTERNAL units (inches).
-   Rendered to display unit dynamically.
-============================================================ */
-function getSliderConfig() {
-  const ID = State.OD * State.ratio;
-  const minWall = DesignLimits.getMinWall(State.OD);
-  const maxWall = DesignLimits.getMaxWall(State.OD, ID);
-  return {
-    OD:    { min: 0.063, max: 12.0, step: 0.001, val: State.OD },
-    ratio: { min: 0.60,  max: 0.95, step: 0.005, val: State.ratio },
-    t:     { min: minWall, max: Math.max(minWall, maxWall), step: 0.0001, val: State.t },
-    n:     { min: DesignLimits.getMinPitch(State.OD),
-             max: DesignLimits.getMaxPitch(State.OD, State.OD * State.ratio, State.t),
-             step: 0.0001, val: State.n_pitch },
-    N:     { min: 1,     max: 500,  step: 0.5,   val: State.N },
-    Pwork: { min: 0,     max: 120,  step: 1,     val: State.Pwork_pct },
-  };
-}
-
-/* ============================================================
    UI — SLIDER RENDERING & UPDATES
 ============================================================ */
 const UI = {
@@ -1151,8 +1127,7 @@ const UI = {
     const sl = document.getElementById(sliderId);
     sl.addEventListener('input', () => {
       onchange(sl.value);
-      this.refreshAllSliderAppearances(sliderId);
-      updateAll();
+      updateAll(sliderId);
     });
   },
 
@@ -1218,7 +1193,6 @@ const UI = {
     const clamped = Math.min(Math.max(internalVal, minVal), maxVal);
 
     onValid(clamped);
-    this.refreshAllSliderAppearances();
     updateAll();
   },
 
@@ -1779,7 +1753,9 @@ const Diagram = {
 /* ============================================================
    MAIN UPDATE FUNCTION
 ============================================================ */
-function updateAll() {
+// activeId: ID of the slider currently being dragged, forwarded to
+// refreshAllSliderAppearances so the dragged thumb is not written back mid-drag.
+function updateAll(activeId = null) {
   const O = State.OD;
   const I = O * State.ratio;
   const t = State.t;
@@ -1790,7 +1766,7 @@ function updateAll() {
   const L = State.n_pitch * N;
 
   // Formulas
-  const pressure         = Formulas.pressureRating(O, I, State.t, N);
+  const pressure         = Formulas.pressureRating(O, I, State.t);
   const workingPressure  = pressure.nominal * Pwork_pct;
   const stroke           = Formulas.strokeRating(O, I, State.t, N, State.mode);
   const pDerate          = Formulas.pressureDerating(Pwork_pct);
@@ -1811,7 +1787,7 @@ function updateAll() {
   const warnings = DesignLimits.validate(O, I, State.t, L, N);
 
   // Refresh slider UI to reflect any clamping
-  UI.refreshAllSliderAppearances();
+  UI.refreshAllSliderAppearances(activeId);
   UI.renderOutputs(results);
   UI.renderWarnings(warnings);
   Diagram.render(O, I, State.t, N, L);
@@ -1863,11 +1839,11 @@ function stateFromQueryParams(params) {
   const int    = (key) => { const v = parseInt(params.get(key));   return isFinite(v) ? v : null; };
   const str    = (key) => params.get(key);
 
-  const od    = float('od');    if (od    !== null) State.OD          = od;
+  const od    = float('od');    if (od    !== null) State.OD          = Math.min(Math.max(od, 0.063), 12.0);
   const ratio = float('ratio'); if (ratio !== null) State.ratio       = Math.min(Math.max(ratio, 0.60), 0.95);
-  const t     = float('t');     if (t     !== null) State.t           = t;
+  const t     = float('t');     if (t     !== null) State.t           = Math.min(Math.max(t, 0.0003), 0.1);
   const n     = float('n');     if (n     !== null) State.N           = Math.round(Math.min(Math.max(n, 1), 500) * 2) / 2;
-  const pitch = float('pitch'); if (pitch !== null) State.n_pitch     = pitch;
+  const pitch = float('pitch'); if (pitch !== null) State.n_pitch     = Math.min(Math.max(pitch, 0.005), 1.0);
   const p     = int('p');       if (p     !== null) State.Pwork_pct   = Math.min(Math.max(p, 0), 120);
   const life  = int('life');    if (life  !== null && life >= 0 && life <= 6) State.lifeCycleIndex = life;
 

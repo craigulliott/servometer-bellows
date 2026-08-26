@@ -4,6 +4,10 @@ Hope it's helpful to someone.
 
 Its a self contained HTML file (contains all styles and javascript). 
 
+Source equations and instructions:
+
+https://info.mwcomponents.com/hubfs/MWC-%20BellowsDesignGuide.pdf
+
 Built with help from Claude.
 
 Example:
