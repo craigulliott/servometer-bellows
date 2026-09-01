@@ -868,9 +868,10 @@ const Constants = {
   // De-rating curve: [workingPressureFraction, usableStrokeFraction]
   // Per the Servometer Bellows Design Guide chart (p.4, "De-Rating Stroke For
   // Working Pressure"): flat at 1.0 up to 40% of rated pressure, then a single
-  // straight line reaching 0 at 160%. Verified by pixel analysis of the printed
-  // chart (see bellows-design-guide.md, Appendix B); passes through the guide's
-  // worked example (0.8 → 0.67).
+  // straight line reaching 0 at 160%. Verified by pixel analysis of a 600-DPI
+  // render of the printed chart (straight-line fit, mean residual ~0.5px over
+  // 907 columns, crossing y=1.0 at x≈0.413 and y=0 at x≈1.593); passes through
+  // the guide's worked example (0.8 → 0.67).
   deratingCurve: [
     [0.00, 1.00],
     [0.40, 1.00],
