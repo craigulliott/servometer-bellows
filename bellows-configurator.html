@@ -947,22 +947,22 @@ const DesignLimits = {
     return (OD_in - ID_in) / 2 * 0.40;
   },
 
-  // Minimum convolution pitch = minGrooveWidth + minFinWidth, interpolated for OD
-  getMinPitch(OD_in) {
+  // Minimum convolution pitch = 2 × (minGrooveWidth + wall thickness).
+  // Geometric identity: within one pitch the wall crosses OD→ID→OD (two wall
+  // segments, each consuming ≥ t axially), so
+  //   outerGroove + innerGroove = pitch − 2t.
+  // The guide (p.3) requires BOTH outer and inner groove widths of the finished
+  // part to meet the table minimum, hence pitch ≥ 2·(minGroove + t).
+  // minGroove uses the table row at-or-below the OD (no interpolation): this
+  // matches Servometer engineering feedback (Sep 2026) — their quoted minimum
+  // pitch at OD 7 mm / wall 0.089 mm was 2×(0.014 + wall) to within 0.2%,
+  // i.e. the 0.250" row applied un-interpolated.
+  getMinPitch(OD_in, t_in) {
     const tbl = Constants.designLimits;
-    const interp = (col) => {
-      if (OD_in <= tbl[0][0]) return tbl[0][col];
-      for (let i = 1; i < tbl.length; i++) {
-        if (OD_in <= tbl[i][0]) {
-          const lo = tbl[i-1], hi = tbl[i];
-          const frac = (OD_in - lo[0]) / (hi[0] - lo[0]);
-          return lo[col] + frac * (hi[col] - lo[col]);
-        }
-      }
-      return tbl[tbl.length - 1][col];
-    };
-    // col 2 = minGrooveWidth, col 4 = minFinWidth
-    return interp(2) + interp(4);
+    // col 2 = minGrooveWidth, from largest table row whose OD ≤ actual OD
+    let minGroove = tbl[0][2];
+    for (const row of tbl) { if (row[0] <= OD_in) minGroove = row[2]; else break; }
+    return 2 * (minGroove + t_in);
   },
 
   validate(OD, ID, t, L, N) {
@@ -970,8 +970,9 @@ const DesignLimits = {
     const ratio = ID / OD;
     const minWall = this.getMinWall(OD);
     const maxWall = this.getMaxWall(OD, ID);
-    const maxOD = 12.0;
-    const maxL  = 9.0;
+    const maxOD  = 12.0;
+    const maxL   = 9.0;
+    const leachL = 4.0;  // practical single-piece leach length (vendor feedback)
     const n = State.n_pitch; // convolution pitch (primary input now)
 
     if (OD > maxOD) {
@@ -979,6 +980,8 @@ const DesignLimits = {
     }
     if (L > maxL) {
       warnings.push({ level: 'err', msg: `Active length L = N×n = ${Units.fmt(L)} ${Units.suffix()} exceeds max 9 in (${Units.fmt(maxL)} ${Units.suffix()})` });
+    } else if (L > leachL) {
+      warnings.push({ level: 'warn', msg: `Active length L = ${Units.fmt(L)} ${Units.suffix()} exceeds ~4 in (${Units.fmt(leachL)} ${Units.suffix()}) single-piece mandrel-leaching guideline (Servometer engineering feedback, not in the design guide) — expect a multi-segment joined construction` });
     }
     if (ratio < 0.60) {
       warnings.push({ level: 'err', msg: `ID/OD ratio ${ratio.toFixed(3)} is below minimum 0.60` });
@@ -994,11 +997,13 @@ const DesignLimits = {
     } else {
       warnings.push({ level: 'ok', msg: `Wall thickness ${Units.fmt(t,4)} ${Units.suffix()} ✓` });
     }
-    const minPitch = this.getMinPitch(OD);
-    if (n < minPitch) {
-      warnings.push({ level: 'err', msg: `Conv. pitch ${Units.fmt(n,4)} ${Units.suffix()} below min ${Units.fmt(minPitch,4)} ${Units.suffix()} for this OD` });
+    const minPitch = this.getMinPitch(OD, t);
+    if (n <= 2 * t) {
+      warnings.push({ level: 'err', msg: `Conv. pitch ${Units.fmt(n,4)} ${Units.suffix()} ≤ 2×wall (${Units.fmt(2*t,4)} ${Units.suffix()}) — convolutions fuse solid, no groove opening remains` });
+    } else if (n < minPitch * 0.995) {  // 0.5% grace absorbs unit-conversion rounding
+      warnings.push({ level: 'err', msg: `Conv. pitch ${Units.fmt(n,4)} ${Units.suffix()} below min ${Units.fmt(minPitch,4)} ${Units.suffix()} for this OD & wall — grooves too narrow to plate (each groove gets ${Units.fmt((n - 2*t)/2,4)} ${Units.suffix()} vs required ${Units.fmt((minPitch - 2*t)/2,4)} ${Units.suffix()})` });
     } else {
-      warnings.push({ level: 'ok', msg: `Conv. pitch ${Units.fmt(n,4)} ${Units.suffix()} ✓` });
+      warnings.push({ level: 'ok', msg: `Conv. pitch ${Units.fmt(n,4)} ${Units.suffix()} ✓ (min ${Units.fmt(minPitch,4)} ${Units.suffix()} for this OD & wall)` });
     }
     if (OD - ID - t <= 0) {
       warnings.push({ level: 'err', msg: `Convolution depth (O−I−t) ≤ 0 — invalid geometry` });
@@ -1249,7 +1254,7 @@ const UI = {
 
     // Convolution pitch n — no hard max; warnings handle out-of-range
     this.bindInputBox('val-n',
-      () => DesignLimits.getMinPitch(State.OD),
+      () => DesignLimits.getMinPitch(State.OD, State.t),
       () => 1.0,
       (v) => Units.toInternal(v),
       (_) => Units.fmt(State.n_pitch) + ' ' + Units.suffix(),
@@ -1280,8 +1285,8 @@ const UI = {
     this.setSlider('sl-t', 'val-t', 'min-t', 'max-t',
       State.t, 0.0003, 0.1, Units.dimStep(), activeId);
 
-    // Conv. pitch — fixed absolute range; warnings tell user the valid range.
-    // Min = smallest entry in table (0.063" OD: 0.003+0.002 = 0.005 in).
+    // Conv. pitch — fixed absolute range; warnings tell user the valid range
+    // (real min is 2×(minGroove+t), OD- and wall-dependent — see getMinPitch).
     // Max = 1.0 in covers all realistic bellows geometries.
     this.setSlider('sl-n', 'val-n', 'min-n', 'max-n',
       State.n_pitch, 0.005, 1.0, Units.dimStep(), activeId);
