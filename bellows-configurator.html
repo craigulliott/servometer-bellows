@@ -972,7 +972,7 @@ const DesignLimits = {
     const maxWall = this.getMaxWall(OD, ID);
     const maxOD  = 12.0;
     const maxL   = 9.0;
-    const leachL = 4.0;  // practical single-piece leach length (vendor feedback)
+    const leachL = 6.0;  // practical single-piece leach length upper bound (vendor feedback: "even at 6 inches is pushing what we can leach well")
     const n = State.n_pitch; // convolution pitch (primary input now)
 
     if (OD > maxOD) {
@@ -981,7 +981,7 @@ const DesignLimits = {
     if (L > maxL) {
       warnings.push({ level: 'err', msg: `Active length L = N×n = ${Units.fmt(L)} ${Units.suffix()} exceeds max 9 in (${Units.fmt(maxL)} ${Units.suffix()})` });
     } else if (L > leachL) {
-      warnings.push({ level: 'warn', msg: `Active length L = ${Units.fmt(L)} ${Units.suffix()} exceeds ~4 in (${Units.fmt(leachL)} ${Units.suffix()}) single-piece mandrel-leaching guideline (Servometer engineering feedback, not in the design guide) — expect a multi-segment joined construction` });
+      warnings.push({ level: 'warn', msg: `Active length L = ${Units.fmt(L)} ${Units.suffix()} exceeds ~6 in (${Units.fmt(leachL)} ${Units.suffix()}) single-piece mandrel-leaching guideline (Servometer engineering feedback, not in the design guide) — expect a multi-segment joined construction` });
     }
     if (ratio < 0.60) {
       warnings.push({ level: 'err', msg: `ID/OD ratio ${ratio.toFixed(3)} is below minimum 0.60` });
