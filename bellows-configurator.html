@@ -1159,14 +1159,23 @@ const UI = {
   bindInputBox(inputId, getMin, getMax, toInternal, toDisplay, onValid) {
     const el = document.getElementById(inputId);
     if (!el) return;
+    let focusText = null;  // stripped text at focus time, to detect an actual edit
 
     el.addEventListener('focus', () => {
       // Strip unit suffix on focus so user can type a clean number
       el.value = el.value.replace(/[^0-9.\-]/g, '');
+      focusText = el.value;
     });
 
     el.addEventListener('blur', () => {
-      this._commitInputBox(el, getMin, getMax, toInternal, toDisplay, onValid);
+      // Unedited: just restore the display. Re-committing the rounded display
+      // text would nudge (and re-clamp) State from merely clicking in and out.
+      if (el.value.trim() === focusText) {
+        el.value = toDisplay(null);
+      } else {
+        this._commitInputBox(el, getMin, getMax, toInternal, toDisplay, onValid);
+      }
+      focusText = null;
     });
 
     el.addEventListener('keydown', (e) => {
@@ -1174,9 +1183,8 @@ const UI = {
         e.preventDefault();
         el.blur();
       } else if (e.key === 'Escape') {
-        // Revert to current state value without committing
-        const currentInternal = toInternal(null); // pass null = read current state
-        el.value = toDisplay(currentInternal);
+        // Revert without committing: restoring the focus-time text makes blur a no-op
+        el.value = focusText;
         el.blur();
       }
     });
@@ -1197,6 +1205,8 @@ const UI = {
     const minVal = getMin();
     const maxVal = getMax();
     const clamped = Math.min(Math.max(internalVal, minVal), maxVal);
+    // Flag a clamped value (tolerance ignores mm→in float noise at the range edges)
+    if (Math.abs(clamped - internalVal) > 1e-9) this._flashError(el);
 
     onValid(clamped);
     updateAll();
@@ -1252,9 +1262,10 @@ const UI = {
       (v) => { State.N = v; }
     );
 
-    // Convolution pitch n — no hard max; warnings handle out-of-range
+    // Convolution pitch n — same fixed range as the slider; warnings flag pitch
+    // below the OD/wall-dependent minimum (getMinPitch) rather than clamping to it
     this.bindInputBox('val-n',
-      () => DesignLimits.getMinPitch(State.OD, State.t),
+      () => 0.005,
       () => 1.0,
       (v) => Units.toInternal(v),
       (_) => Units.fmt(State.n_pitch) + ' ' + Units.suffix(),
